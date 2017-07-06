@@ -79,7 +79,12 @@ function RhythmOneHtb(configs) {
 
     /* Utilities
      * ---------------------------------- */
-
+     
+    var configuredPlacements,
+        loadStart,
+        version = "0.5",
+        global = window;
+     
     /**
      * Generates the request URL and query data to the endpoint for the xSlots
      * in the given returnParcels.
@@ -153,9 +158,134 @@ function RhythmOneHtb(configs) {
 
         /* -------------------------------------------------------------------------- */
 
+        var demand = {slot:{}},
+            bids = [],
+            i=0;
+        
+        /*
+        var returnParcels = [{
+                partnerId: 'RhythmOneHtb',
+                htSlot: { getId: function () {
+                    return "htSlot1"
+                }},
+                ref: '',
+                xSlotRef: { placementId: '54321', sizes: [ [300,250] ] },
+                requestId: '_1496788873668',
+            },{
+                partnerId: 'RhythmOneHtb',
+                htSlot: { getId: function () {
+                    return "htSlot1"
+                }},
+                ref: '',
+                xSlotRef: { placementId: '12345', sizes: [ [300,600] ] },
+                requestId: '_1496788873668',
+            },{
+                partnerId: 'RhythmOneHtb',
+                htSlot: { getId: function () {
+                    return "htSlot2"
+                }},
+                ref: '',
+                xSlotRef: { placementId: '654321', sizes: [ [728,90] ] },
+                requestId: '_1496788873668',
+            }];
+        */
+        
+        for(; i<returnParcels.length; i++){
+            if(returnParcels[i].partnerId === "RhythmOneHtb"){
+                var id = System.generateUniqueId(16, "ALPHANUM"),
+                    slotData = returnParcels[i].xSlotRef,
+                    bid = {
+                        placementCode: id+"_"+returnParcels[i].htSlot.getId(),
+                        sizes: []
+                    };
+
+                bidParams.placementId = slotData.placementId;
+                
+                if(slotData.zone) bidParams.zone = slotData.zone;
+                if(slotData.path) bidParams.path = slotData.path;
+                if(slotData.endpoint) bidParams.endpoint = slotData.endpoint;
+
+                for(var j=0; j<slotData.sizes.length; j++)
+                    bid.sizes.push([slotData.sizes[j][0],slotData.sizes[j][1]]);
+                
+                bids.push(bid);
+            }
+        }
+
+        var url = applyMacros(bidParams.endpoint || "http"+((/^https\:/i).test(document.location.href)?"s":"")+"://tag.1rx.io/rmp/{placementId}/0/{path}", {
+                placementid:bidParams.placementId,
+                zone: bidParams.zone || "1r",
+                path: bidParams.path || "mvo"
+            }),
+            query = {
+                trace: (bidParams.trace === true),
+                debug: (bidParams.debug === true)
+            };
+
+        function p(k,v){
+            if(v instanceof Array)
+                v = v.join(",");
+            if(typeof v !== "undefined")
+                query[encodeURIComponent(k)] = encodeURIComponent(v);
+        }
+
+        p("domain", attempt(function(){
+            var d = global.document.location.ancestorOrigins;
+            if(d && d.length > 0)
+            return d[d.length-1];
+            return global.top.document.location.hostname; // try/catch is in the attempt function
+        },""));
+        p("title", attempt(function(){return global.top.document.title;},"")); // try/catch is in the attempt function
+        p("url", attempt(function(){
+            var l;
+            try{l = global.top.document.location.href.toString();} // try/catch is in the attempt function
+            catch(ex){l = global.document.location.href.toString();}
+            return l;
+        },""));
+        p("dsh", (global.screen ? global.screen.height : ""));
+        p("dsw", (global.screen ? global.screen.width : ""));
+        p("tz", (new Date()).getTimezoneOffset());
+        p("dtype", ((/(ios|ipod|ipad|iphone|android)/i).test(global.navigator.userAgent) ? 1 : ((/(smart[-]?tv|hbbtv|appletv|googletv|hdmi|netcast\.tv|viera|nettv|roku|\bdtv\b|sonydtv|inettvbrowser|\btv\b)/i).test(global.navigator.userAgent) ? 3 : 2)));
+        p("flash", (flashInstalled() ? 1 : 0));
+
+        var heights = [],
+            widths = [],
+            floors = [],
+            mediaTypes = [];
+            
+        configuredPlacements = [];
+
+        p("hbv", "IX,"+version);
+
+        for(i=0; i<bids.length; i++){
+
+            var th = [], tw = [];
+
+            if(bids[i].sizes.length > 0 && typeof bids[i].sizes[0] === "number")
+                bids[i].sizes = [bids[i].sizes];
+
+            for(var j = 0; j<bids[i].sizes.length; j++){
+                tw.push(bids[i].sizes[j][0]);
+                th.push(bids[i].sizes[j][1]);
+            }
+            configuredPlacements.push(bids[i].placementCode);
+            heights.push(th.join("|"));
+            widths.push(tw.join("|"));
+            mediaTypes.push(((/video/i).test(bids[i].mediaType) ? "v" : "d"));
+            floors.push(0);
+        }
+
+        p("imp", configuredPlacements);
+        p("w", widths);
+        p("h", heights);
+        p("floor", floors);
+        p("t", mediaTypes);
+        
+        loadStart = (new Date()).getTime();
+        
         return {
-            url: baseUrl,
-            data: queryObj,
+            url: url,
+            data: query,
             callbackId: callbackId
         };
     }
@@ -233,7 +363,16 @@ function RhythmOneHtb(configs) {
 
         /* ---------- Proces adResponse and extract the bids into the bids array ------------*/
 
-        var bids = adResponse;
+        if(typeof adResponse === "string")
+            adResponse = JSON.parse(adResponse);
+        
+        var bids = [];
+        
+        for(var i=0; adResponse.seatbid && i<adResponse.seatbid.length; i++){
+            for(var k=0; adResponse.seatbid[i].bid && k<adResponse.seatbid[i].bid.length; k++){
+                bids.push(adResponse.seatbid[i].bid[k]);
+            }
+        }
 
         /* --------------------------------------------------------------------------------- */
 
@@ -250,7 +389,7 @@ function RhythmOneHtb(configs) {
                  * key to a key that represents the placement in the configuration and in the bid responses.
                  */
 
-                if (unusedReturnParcels[j].someCriteria === bids[i].someCriteria) { // change this
+                if (unusedReturnParcels[j].htSlot.getId() === bids[i].impid.split("_")[1]) {
                     curReturnParcel = unusedReturnParcels[j];
                     unusedReturnParcels.splice(j, 1);
                     break;
@@ -263,10 +402,10 @@ function RhythmOneHtb(configs) {
 
             /* ---------- Fill the bid variables with data from the bid response here. ------------*/
 
-            var bidPrice; // the bid price for the given slot
-            var bidWidth; // the width of the given slot
-            var bidHeight; // the height of the given slot
-            var bidCreative; // the creative/adm for the given slot that will be rendered if is the winner.
+            var bidPrice = bids[i].price; // the bid price for the given slot
+            var bidWidth = bids[i].w; // the width of the given slot
+            var bidHeight =  = bids[i].h ; // the height of the given slot
+            var bidCreative = bids[i].adm; // the creative/adm for the given slot that will be rendered if is the winner.
             var bidDealId; // the dealId if applicable for this slot.
             var bidIsPass; // true/false value for if the module returned a pass for this slot.
 
@@ -401,7 +540,7 @@ function RhythmOneHtb(configs) {
                 pmid: 'ix_rone_pmid'
             },
             lineItemType: Constants.LineItemTypes.ID_AND_SIZE,
-            callbackType: Partner.CallbackTypes.ID, // Callback type, please refer to the readme for details
+            callbackType: Partner.CallbackTypes.NONE, // Callback type, please refer to the readme for details
             architecture: Partner.Architectures.SRA, // Request architecture, please refer to the readme for details
             requestType: Partner.RequestTypes.ANY // Request type, jsonp, ajax, or any.
         };
