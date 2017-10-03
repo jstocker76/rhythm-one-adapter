@@ -83,8 +83,37 @@ function RhythmOneHtb(configs) {
     var configuredPlacements,
         loadStart,
         version = "0.5",
-        global = window;
+        global = typeof window !== "undefined" ? window : {navigator:{},document:{location:{href:"http://cnn.com", ancestorOrigins:["cnn.com"]}}};
      
+	function attempt(valueFunction, defaultValue) {
+      try {
+        return valueFunction();
+      } catch (ex) {}
+      return defaultValue;
+    } 
+	
+  function flashInstalled() {
+    var n = global.navigator,
+      p = n.plugins,
+      m = n.mimeTypes,
+      t = 'application/x-shockwave-flash',
+      x = global.ActiveXObject;
+
+    if (p &&
+      p['Shockwave Flash'] &&
+      m &&
+      m[t] &&
+      m[t].enabledPlugin)
+      { return true; }
+
+    if (x) {
+      try { if ((new global.ActiveXObject('ShockwaveFlash.ShockwaveFlash'))) return true; }
+      catch (e) {}
+    }
+
+    return false;
+  }
+	
     /**
      * Generates the request URL and query data to the endpoint for the xSlots
      * in the given returnParcels.
@@ -94,6 +123,7 @@ function RhythmOneHtb(configs) {
      * @return {object}
      */
     function __generateRequestObj(returnParcels) {
+	
         var queryObj = {};
         var baseUrl = Browser.getProtocol() + '';
         var callbackId = System.generateUniqueId();
@@ -160,7 +190,8 @@ function RhythmOneHtb(configs) {
 
         var demand = {slot:{}},
             bids = [],
-            i=0;
+            i=0,
+			bidParams = {};
         
         /*
         var returnParcels = [{
@@ -190,8 +221,9 @@ function RhythmOneHtb(configs) {
             }];
         */
         
-        for(; i<returnParcels.length; i++){
+        for(var i=0; i<returnParcels.length; i++){
             if(returnParcels[i].partnerId === "RhythmOneHtb"){
+			
                 var id = System.generateUniqueId(16, "ALPHANUM"),
                     slotData = returnParcels[i].xSlotRef,
                     bid = {
@@ -212,11 +244,7 @@ function RhythmOneHtb(configs) {
             }
         }
 
-        var url = applyMacros(bidParams.endpoint || "http"+((/^https\:/i).test(document.location.href)?"s":"")+"://tag.1rx.io/rmp/{placementId}/0/{path}", {
-                placementid:bidParams.placementId,
-                zone: bidParams.zone || "1r",
-                path: bidParams.path || "mvo"
-            }),
+        var url = bidParams.endpoint || ("//tag.1rx.io/rmp/")+bidParams.placementId+"/0/"+(bidParams.path || "mvo"),
             query = {
                 trace: (bidParams.trace === true),
                 debug: (bidParams.debug === true)
@@ -226,7 +254,7 @@ function RhythmOneHtb(configs) {
             if(v instanceof Array)
                 v = v.join(",");
             if(typeof v !== "undefined")
-                query[encodeURIComponent(k)] = encodeURIComponent(v);
+                query[k] = v;
         }
 
         p("domain", attempt(function(){
@@ -236,16 +264,11 @@ function RhythmOneHtb(configs) {
             return global.top.document.location.hostname; // try/catch is in the attempt function
         },""));
         p("title", attempt(function(){return global.top.document.title;},"")); // try/catch is in the attempt function
-        p("url", attempt(function(){
-            var l;
-            try{l = global.top.document.location.href.toString();} // try/catch is in the attempt function
-            catch(ex){l = global.document.location.href.toString();}
-            return l;
-        },""));
+        p("url", Browser.getPageUrl());
         p("dsh", (global.screen ? global.screen.height : ""));
         p("dsw", (global.screen ? global.screen.width : ""));
         p("tz", (new Date()).getTimezoneOffset());
-        p("dtype", ((/(ios|ipod|ipad|iphone|android)/i).test(global.navigator.userAgent) ? 1 : ((/(smart[-]?tv|hbbtv|appletv|googletv|hdmi|netcast\.tv|viera|nettv|roku|\bdtv\b|sonydtv|inettvbrowser|\btv\b)/i).test(global.navigator.userAgent) ? 3 : 2)));
+        p("dtype", ((/(ios|ipod|ipad|iphone|android)/i).test(Browser.getUserAgent()) ? 1 : ((/(smart[-]?tv|hbbtv|appletv|googletv|hdmi|netcast\.tv|viera|nettv|roku|\bdtv\b|sonydtv|inettvbrowser|\btv\b)/i).test(Browser.getUserAgent()) ? 3 : 2)));
         p("flash", (flashInstalled() ? 1 : 0));
 
         var heights = [],
@@ -282,7 +305,7 @@ function RhythmOneHtb(configs) {
         p("t", mediaTypes);
         
         loadStart = (new Date()).getTime();
-        
+
         return {
             url: url,
             data: query,
@@ -340,8 +363,6 @@ function RhythmOneHtb(configs) {
      */
     function __parseResponse(sessionId, adResponse, returnParcels) {
 
-        var unusedReturnParcels = returnParcels.slice();
-
         /* =============================================================================
          * STEP 4  | Parse & store demand response
          * -----------------------------------------------------------------------------
@@ -380,7 +401,7 @@ function RhythmOneHtb(configs) {
 
             var curReturnParcel;
 
-            for (var j = unusedReturnParcels.length - 1; j >= 0; j--) {
+            for (var j = returnParcels.length - 1; j >= 0; j--) {
 
                 /**
                  * This section maps internal returnParcels and demand returned from the bid request.
@@ -388,10 +409,12 @@ function RhythmOneHtb(configs) {
                  * is usually some sort of placements or inventory codes. Please replace the someCriteria
                  * key to a key that represents the placement in the configuration and in the bid responses.
                  */
-
-                if (unusedReturnParcels[j].htSlot.getId() === bids[i].impid.split("_")[1]) {
-                    curReturnParcel = unusedReturnParcels[j];
-                    unusedReturnParcels.splice(j, 1);
+				
+				curReturnParcel = returnParcels[j];
+				
+				var htSlotId = returnParcels[j].htSlot.getId();
+                if (htSlotId === bids[i].impid.split("_")[1]) {
+                    curReturnParcel = returnParcels[j];
                     break;
                 }
             }
@@ -404,30 +427,11 @@ function RhythmOneHtb(configs) {
 
             var bidPrice = bids[i].price; // the bid price for the given slot
             var bidWidth = bids[i].w; // the width of the given slot
-            var bidHeight =  = bids[i].h ; // the height of the given slot
+            var bidHeight = bids[i].h ; // the height of the given slot
             var bidCreative = bids[i].adm; // the creative/adm for the given slot that will be rendered if is the winner.
             var bidDealId; // the dealId if applicable for this slot.
-            var bidIsPass; // true/false value for if the module returned a pass for this slot.
 
             /* ---------------------------------------------------------------------------------------*/
-
-            if (bidIsPass) {
-                //? if (DEBUG) {
-                Scribe.info(__profile.partnerId + ' returned pass for { id: ' + adResponse.id + ' }.');
-                //? }
-                if (__profile.enabledAnalytics.requestTime) {
-                    EventsService.emit('hs_slot_pass', {
-                        sessionId: sessionId,
-                        statsId: __profile.statsId,
-                        htSlotId: curReturnParcel.htSlot.getId(),
-                        xSlotNames: [curReturnParcel.xSlotName]
-                    });
-                }
-
-                curReturnParcel.pass = true;
-
-                continue;
-            }
 
             if (__profile.enabledAnalytics.requestTime) {
                 EventsService.emit('hs_slot_bid', {
@@ -496,6 +500,11 @@ function RhythmOneHtb(configs) {
             //? }
         }
 
+		for(var i = 0; i<returnParcels.length; i++){
+			if(!(returnParcels[i].price >= 0)){
+				returnParcels[i].pass = true;
+			}
+		}
     }
 
     /* =====================================

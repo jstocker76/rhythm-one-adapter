@@ -32,18 +32,19 @@ function generateReturnParcels(profile, partnerConfig) {
         if (partnerConfig.mapping.hasOwnProperty(htSlotName)) {
             var xSlotsArray = partnerConfig.mapping[htSlotName];
             for (var i = 0; i < xSlotsArray.length; i++) {
-                var xSlotName = xSlotsArray[i];
-                returnParcels.push({
-                    partnerId: profile.partnerId,
-                    htSlot: {
-                        getId: function () {
-                            return htSlotName
-                        }
-                    },
-                    ref: "",
-                    xSlotRef: partnerConfig.xSlots[xSlotName],
-                    requestId: '_' + Date.now()
-                });
+				(function(xSlotName, htSlotName){
+					returnParcels.push({
+						partnerId: profile.partnerId,
+						htSlot: {
+							getId: function () {
+								return htSlotName
+							}
+						},
+						ref: "",
+						xSlotRef: partnerConfig.xSlots[xSlotName],
+						requestId: '_' + Date.now()
+					});
+				})(xSlotsArray[i], htSlotName);
             }
         }
     }

@@ -32,22 +32,23 @@ function generateReturnParcels(profile, partnerConfig) {
         if (partnerConfig.mapping.hasOwnProperty(htSlotName)) {
             var xSlotsArray = partnerConfig.mapping[htSlotName];
             for (var i = 0; i < xSlotsArray.length; i++) {
-                var xSlotName = xSlotsArray[i];
-                returnParcels.push({
-                    partnerId: profile.partnerId,
-                    htSlot: {
-                        getId: function () {
-                            return htSlotName
-                        }
-                    },
-                    ref: "",
-                    xSlotRef: partnerConfig.xSlots[xSlotName],
-                    requestId: '_' + Date.now()
-                });
+				(function(xSlotName, htSlotName){
+					returnParcels.push({
+						partnerId: profile.partnerId,
+						htSlot: {
+							getId: function () {
+								return htSlotName
+							}
+						},
+						ref: "",
+						xSlotRef: partnerConfig.xSlots[xSlotName],
+						requestId: '_' + Date.now()
+					});
+				})(xSlotsArray[i], htSlotName);
             }
         }
     }
-
+	
     return returnParcels;
 }
 
@@ -106,12 +107,29 @@ describe('parseResponse', function () {
          * For SRA, this could be mulitple items, for MRA it will always be a single item.
          */
 
-        var adResponseMock1 = []
+        var adResponseMock1 = {
+			seatbid:[{
+				bid:[{
+					impid: "_htSlot2",
+					price: 1.5,
+					w: 300,
+					h: 250,
+					adm: "<pre>In Xanadu did Kubla Khan \nA stately pleasure-dome decree: \nWhere Alph, the sacred river, ran \nThrough caverns measureless to man \n   Down to a sunless sea.</pre>"
+				},
+				{
+					impid: "_htSlot1",
+					price: 1.5,
+					w: 728,
+					h: 90,
+					adm: "<img src='http://skmzq.qiniucdn.com/data/20090724002135/300px-laughing_man_big_2.png' height='270' width='300' />"
+				}]
+			}]
+		};
         /* ------------------------------------------------------------------------*/
-
+		
         /* IF SRA, parse all parcels at once */
         if (partnerProfile.architecture) partnerModule.parseResponse(1, adResponseMock1, returnParcels1);
-
+		
         /* Simple type checking on the returned objects, should always pass */
         it('each parcel should have the required fields set', function () {
             for (var i = 0; i < returnParcels1.length; i++) {
@@ -119,52 +137,54 @@ describe('parseResponse', function () {
                 /* IF MRA, parse one parcel at a time */
                 if (!partnerProfile.architecture) partnerModule.parseResponse(1, adResponseMock1, [returnParcels1[i]]);
 
-                var result = inspector.validate({
-                    type: 'object',
-                    properties: {
-                        targetingType: {
-                            type: 'string',
-                            eq: 'slot'
-                        },
-                        targeting: {
-                            type: 'object',
-                            properties: {
-                                [partnerModule.profile.targetingKeys.id]: {
-                                    type: 'array',
-                                    exactLength: 1,
-                                    items: {
-                                        type: 'string',
-                                        minLength: 1
-                                    }
-                                },
-                                [partnerModule.profile.targetingKeys.om]: {
-                                    type: 'array',
-                                    exactLength: 1,
-                                    items: {
-                                        type: 'string',
-                                        minLength: 1
-                                    }
-                                },
-                                pubKitAdId: {
-                                    type: 'string',
-                                    minLength: 1
-                                }
-                            }
-                        },
-                        price: {
-                            type: 'number'
-                        },
-                        size: {
-                            type: 'array',
-                        },
-                        adm: {
-                            type: 'string',
-                            minLength: 1
-                        }
-                    }
-                }, returnParcels1[i]);
+				if(returnParcels1[i].pass !== true){
+					var result = inspector.validate({
+						type: 'object',
+						properties: {
+							targetingType: {
+								type: 'string',
+								eq: 'slot'
+							},
+							targeting: {
+								type: 'object',
+								properties: {
+									[partnerModule.profile.targetingKeys.id]: {
+										type: 'array',
+										exactLength: 1,
+										items: {
+											type: 'string',
+											minLength: 1
+										}
+									},
+									[partnerModule.profile.targetingKeys.om]: {
+										type: 'array',
+										exactLength: 1,
+										items: {
+											type: 'string',
+											minLength: 1
+										}
+									},
+									pubKitAdId: {
+										type: 'string',
+										minLength: 1
+									}
+								}
+							},
+							price: {
+								type: 'number'
+							},
+							size: {
+								type: 'array',
+							},
+							adm: {
+								type: 'string',
+								minLength: 1
+							}
+						}
+					}, returnParcels1[i]);
 
-                expect(result.valid, result.format()).to.be.true;
+					expect(result.valid, result.format()).to.be.true;
+				}
             }
         });
 
@@ -225,18 +245,20 @@ describe('parseResponse', function () {
                 /* IF MRA, parse one parcel at a time */
                 if (!partnerProfile.architecture) partnerModule.parseResponse(1, adResponseMock2, [returnParcels2[i]]);
 
-                var result = inspector.validate({
-                    type: 'object',
-                    properties: {
-                        pass: {
-                            type: 'boolean',
-                            eq: true,
+				if(!(returnParcels2[i].price >= 0)){
+					var result = inspector.validate({
+						type: 'object',
+						properties: {
+							pass: {
+								type: 'boolean',
+								eq: true,
 
-                        }
-                    }
-                }, returnParcels2[i]);
+							}
+						}
+					}, returnParcels2[i]);
 
-                expect(result.valid, result.format()).to.be.true;
+					expect(result.valid, result.format()).to.be.true;
+				}
             }
         });
 
@@ -304,60 +326,62 @@ describe('parseResponse', function () {
                 /* IF MRA, parse one parcel at a time */
                 if (!partnerProfile.architecture) partnerModule.parseResponse(1, adResponseMock3, [returnParcels3[i]]);
 
-                var result = inspector.validate({
-                    type: 'object',
-                    properties: {
-                        targetingType: {
-                            type: 'string',
-                            eq: 'slot'
-                        },
-                        targeting: {
-                            type: 'object',
-                            properties: {
-                                [partnerModule.profile.targetingKeys.id]: {
-                                    type: 'array',
-                                    exactLength: 1,
-                                    items: {
-                                        type: 'string',
-                                        minLength: 1
-                                    }
-                                },
-                                [partnerModule.profile.targetingKeys.om]: {
-                                    type: 'array',
-                                    exactLength: 1,
-                                    items: {
-                                        type: 'string',
-                                        minLength: 1
-                                    }
-                                },
-                                [partnerModule.profile.targetingKeys.pm]: {
-                                    type: 'array',
-                                    exactLength: 1,
-                                    items: {
-                                        type: 'string',
-                                        minLength: 1
-                                    }
-                                },
-                                pubKitAdId: {
-                                    type: 'string',
-                                    minLength: 1
-                                }
-                            }
-                        },
-                        price: {
-                            type: 'number'
-                        },
-                        size: {
-                            type: 'array',
-                        },
-                        adm: {
-                            type: 'string',
-                            minLength: 1
-                        },
-                    }
-                }, returnParcels3[i]);
+				if(returnParcels3[i].pass !== true){
+					var result = inspector.validate({
+						type: 'object',
+						properties: {
+							targetingType: {
+								type: 'string',
+								eq: 'slot'
+							},
+							targeting: {
+								type: 'object',
+								properties: {
+									[partnerModule.profile.targetingKeys.id]: {
+										type: 'array',
+										exactLength: 1,
+										items: {
+											type: 'string',
+											minLength: 1
+										}
+									},
+									[partnerModule.profile.targetingKeys.om]: {
+										type: 'array',
+										exactLength: 1,
+										items: {
+											type: 'string',
+											minLength: 1
+										}
+									},
+									[partnerModule.profile.targetingKeys.pm]: {
+										type: 'array',
+										exactLength: 1,
+										items: {
+											type: 'string',
+											minLength: 1
+										}
+									},
+									pubKitAdId: {
+										type: 'string',
+										minLength: 1
+									}
+								}
+							},
+							price: {
+								type: 'number'
+							},
+							size: {
+								type: 'array',
+							},
+							adm: {
+								type: 'string',
+								minLength: 1
+							},
+						}
+					}, returnParcels3[i]);
 
-                expect(result.valid, result.format()).to.be.true;
+					expect(result.valid, result.format()).to.be.true;
+				}
             }
         });
 

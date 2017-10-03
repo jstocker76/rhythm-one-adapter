@@ -129,7 +129,7 @@ describe('Partner Profile', function () {
                                     this.report('pm tageting key should be of the format ix_{statsId}_cpm')
                                 }
                             }
-                        },
+                        }/*,
                         pmid: {
                             type: 'string',
                             exec: function (schema, post) {
@@ -141,7 +141,7 @@ describe('Partner Profile', function () {
                                     this.report('pmid tageting key should be of the format ix_{statsId}_dealid')
                                 }
                             }
-                        }
+                        }*/
                     }
                 },
                 lineItemType: {

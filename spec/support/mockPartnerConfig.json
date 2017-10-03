@@ -3,24 +3,24 @@
     "xSlots": {
         "1": {
             "placement": "34887",
-		zone: "test",
-		path: "mvo",
+		"zone": "test",
+		"path": "mvo",
             "sizes": [
                 [300, 250]
             ]
         },
         "2": {
             "placement": "34887",
-		zone: "test",
-		path: "mvo",
+		"zone": "test",
+		"path": "mvo",
             "sizes": [
                 [300, 600]
             ]
         },
         "3": {
             "placement": "34887",
-		zone: "test",
-		path: "mvo",
+		"zone": "test",
+		"path": "mvo",
             "sizes": [
                 [728, 90]
             ]
