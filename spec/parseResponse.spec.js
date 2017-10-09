@@ -233,7 +233,7 @@ describe('parseResponse', function () {
          * For SRA, this could be mulitple items, for MRA it will always be a single item.
          */
 
-        var adResponseMock2 = [];
+        var adResponseMock2 = "";
         /* ------------------------------------------------------------------------*/
 
         /* IF SRA, parse all parcels at once */
@@ -245,20 +245,18 @@ describe('parseResponse', function () {
                 /* IF MRA, parse one parcel at a time */
                 if (!partnerProfile.architecture) partnerModule.parseResponse(1, adResponseMock2, [returnParcels2[i]]);
 
-				if(!(returnParcels2[i].price >= 0)){
-					var result = inspector.validate({
-						type: 'object',
-						properties: {
-							pass: {
-								type: 'boolean',
-								eq: true,
+				var result = inspector.validate({
+					type: 'object',
+					properties: {
+						pass: {
+							type: 'boolean',
+							eq: true,
 
-							}
 						}
-					}, returnParcels2[i]);
+					}
+				}, returnParcels2[i]);
 
-					expect(result.valid, result.format()).to.be.true;
-				}
+				expect(result.valid, result.format()).to.be.true;
             }
         });
 

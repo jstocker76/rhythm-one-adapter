@@ -384,8 +384,23 @@ function RhythmOneHtb(configs) {
 
         /* ---------- Proces adResponse and extract the bids into the bids array ------------*/
 
-        if(typeof adResponse === "string")
+		function passOnNoBids(){
+			for(var i = 0; i<returnParcels.length; i++){
+				if(!(returnParcels[i].price >= 0)){
+					returnParcels[i].pass = true;
+				}
+			}
+		}
+		
+        try{
             adResponse = JSON.parse(adResponse);
+		}
+		catch(ex){
+			adResponse = null;
+		}
+		
+		if(adResponse === null || !adResponse.seatbid || !(adResponse.seatbid.length > 0))
+			return passOnNoBids();
         
         var bids = [];
         
@@ -500,11 +515,7 @@ function RhythmOneHtb(configs) {
             //? }
         }
 
-		for(var i = 0; i<returnParcels.length; i++){
-			if(!(returnParcels[i].price >= 0)){
-				returnParcels[i].pass = true;
-			}
-		}
+		passOnNoBids();
     }
 
     /* =====================================
